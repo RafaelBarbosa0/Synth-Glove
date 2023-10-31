@@ -71,6 +71,29 @@ MusicWithoutDelay melodyBuzzerThree;
 MusicWithoutDelay melodyBuzzerFour;
 MusicWithoutDelay melodyBuzzerFive;
 
+// Melody buzzer array.
+MusicWithoutDelay melodyArray[5] = {melodyBuzzerOne, melodyBuzzerTwo, melodyBuzzerThree, melodyBuzzerFour, melodyBuzzerFive};
+
+// Buzzer variables.
+int buzzerVolume = 90;
+
+// Flex sensor pins.
+const int flexLeftThumb = A0;
+const int flexLeftIndex = A1;
+const int flexLeftMiddle = A2;
+
+const int flexRightThumb = A3;
+const int flexRightIndex = A4;
+const int flexRightMiddle = A5;
+const int flexRightRing = A6;
+const int flexRightPinky = A7;
+
+// Left hand flex array.
+int leftFlexArray[3] = {flexLeftThumb, flexLeftIndex, flexLeftMiddle};
+
+// Right hand flex array.
+int rightFlexArray[5] = {flexRightThumb, flexRightIndex, flexRightMiddle, flexRightRing, flexRightPinky};
+
 void setup() 
 {
   Serial.begin(9600);
@@ -109,40 +132,136 @@ void loop()
   melodyBuzzerFive.update();
 
   // Set instruments volume.
-  chordBuzzerOne.setVolume(100);
-  chordBuzzerTwo.setVolume(100);
-  chordBuzzerThree.setVolume(100);
+  chordBuzzerOne.setVolume(buzzerVolume);
+  chordBuzzerTwo.setVolume(buzzerVolume);
+  chordBuzzerThree.setVolume(buzzerVolume);
 
-  melodyBuzzerOne.setVolume(100);
-  melodyBuzzerTwo.setVolume(100);
-  melodyBuzzerThree.setVolume(100);
-  melodyBuzzerFour.setVolume(100);
-  melodyBuzzerFive.setVolume(100);
+  melodyBuzzerOne.setVolume(buzzerVolume);
+  melodyBuzzerTwo.setVolume(buzzerVolume);
+  melodyBuzzerThree.setVolume(buzzerVolume);
+  melodyBuzzerFour.setVolume(buzzerVolume);
+  melodyBuzzerFive.setVolume(buzzerVolume);
 
   // Get amount of raised fingers on left hand.
-  int raisedFingers = 0;
+  int raisedFingers = 2;
+
+  // Check if each finger on left hand is flexed or not.
+  // For each non flexed finger, add one to raised finger count.
+  for(int i = 0; i < 3; i++)
+  {
+    bool fingerFlexed;
+
+    fingerFlexed = IsFlexed(leftFlexArray[i]);
+
+    if(fingerFlexed == true)
+    {
+      raisedFingers--;
+    }
+  }
+
 
   // Left hand behavior.
   // Get correct chord array according to left hand orientation.
-  if(mpu6050.getAngleY() > -rotationTreshold && mpu6050.getAngleY() < rotationTreshold)
+
+  If there is at least one raised fingers a chord will play.
+  if(raisedFingers >= 0)
   {
-    // Correct chord is played according to amount of raised fingers.
-    playChord(tonicChords[raisedFingers][0], tonicChords[raisedFingers][1], tonicChords[raisedFingers][2]);
+      // Unmute instruments if are muted.
+      if(chordBuzzerOne.isMuted())
+      {
+        chordBuzzerOne.mute(false);
+        chordBuzzerTwo.mute(false);
+        chordBuzzerThree.mute(false);
+      }
+
+      // Tonic chords.
+      if(mpu6050.getAngleY() > -rotationTreshold && mpu6050.getAngleY() < rotationTreshold)
+      {
+        // Correct chord is played according to amount of raised fingers.
+        PlayChord(tonicChords[raisedFingers][0], tonicChords[raisedFingers][1], tonicChords[raisedFingers][2]);
+      }
+
+      // Dominant and subdominant only have 2 chords so if 3 fingers are raised we act as if there's 2.
+      if(raisedFingers == 2) raisedFingers = 1;
+
+      // Subdominant chords.
+      else if(mpu6050.getAngleY() < -rotationTreshold)
+      {
+        // Correct chord is played according to amount of raised fingers.
+        PlayChord(subdominantChords[raisedFingers][0], subdominantChords[raisedFingers][1], subdominantChords[raisedFingers][2]);
+      }
+
+      // Dominant chords.
+      else if(mpu6050.getAngleY() > rotationTreshold)
+      {
+        // Correct chord is played according to amount of raised fingers.
+        PlayChord(dominantChords[raisedFingers][0], dominantChords[raisedFingers][1], dominantChords[raisedFingers][2]);
+      }
   }
 
-  else if(mpu6050.getAngleY() < -rotationTreshold)
+  // If there are no raised fingers, no chord will play.
+  else
   {
-    playChord(subdominantChords[raisedFingers][0], subdominantChords[raisedFingers][1], subdominantChords[raisedFingers][2]);
+    // Mute buzzers if unmuted.
+    if(chordBuzzerOne.isMuted() == false)
+    {
+    chordBuzzerOne.mute(true);
+    chordBuzzerTwo.mute(true);
+    chordBuzzerThree.mute(true);
+    }
+
+    // Reset previous note.
+    previousNoteOne = 0;
+    previousNoteTwo = 0;
+    previousNoteThree = 0;
   }
 
-  else if(mpu6050.getAngleY() > rotationTreshold)
+  // Right hand behavior.
+  for(int i = 0; i < 5; i++)
   {
-    playChord(dominantChords[raisedFingers][0], dominantChords[raisedFingers][1], dominantChords[raisedFingers][2]);
+    bool rightFlexed;
+    rightFlexed = IsFlexed(rightFlexArray[i]);
+
+    if(rightFlexed)
+    {
+      melodyArray[i].mute(false);
+
+      melodyArray[i].setFrequency(pentatonicScale[i]);
+    }
+    else
+    {
+      melodyArray[i].mute(true);
+    }
   }
 }
 
+
+// Functions //
+
+// Receives a pin interfacing with flex sensor and checks if flex sensor is flexed or not.
+bool IsFlexed(int pin)
+{
+  // Read value from flex sensor on analog pin.
+  int flexValue;
+  flexValue = analogRead(pin);
+
+  // Check if it's flexed according to value.
+  bool flexed;
+  // CHANGE LATER.
+  if(pin == A3)
+  {
+    if(flexValue >= 1018) flexed = false;
+    else flexed = true;
+  }
+
+  else flexed = false;
+
+  // Return bool.
+  return flexed;
+}
+
 // Receives the notes for a chord and plays them, forming the chord.
-void playChord(float noteOne, float noteTwo, float noteThree)
+void PlayChord(float noteOne, float noteTwo, float noteThree)
 {
   // If were playing the same chord we don't want to run this again, so return.
   if(noteOne == previousNoteOne && noteTwo == previousNoteTwo && noteThree == previousNoteThree)
@@ -154,8 +273,6 @@ void playChord(float noteOne, float noteTwo, float noteThree)
   chordBuzzerOne.setFrequency(noteOne);
   chordBuzzerTwo.setFrequency(noteTwo);
   chordBuzzerThree.setFrequency(noteThree);
-
-  Serial.println("Played");
 
   // Save played notes to previously played to avoid overlap on next cycle.
   previousNoteOne = noteOne;
