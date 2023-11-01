@@ -163,7 +163,7 @@ void loop()
   // Left hand behavior.
   // Get correct chord array according to left hand orientation.
 
-  If there is at least one raised fingers a chord will play.
+  //If there is at least one raised fingers a chord will play.
   if(raisedFingers >= 0)
   {
       // Unmute instruments if are muted.
