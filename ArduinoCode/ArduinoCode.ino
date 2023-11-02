@@ -247,14 +247,8 @@ bool IsFlexed(int pin)
 
   // Check if it's flexed according to value.
   bool flexed;
-  // CHANGE LATER.
-  if(pin == A3)
-  {
-    if(flexValue >= 1018) flexed = false;
-    else flexed = true;
-  }
-
-  else flexed = false;
+  if(flexValue <= 5) flexed = false;
+  else flexed = true;
 
   // Return bool.
   return flexed;
